@@ -9,15 +9,10 @@ services:
     volumes:
       - .:/var/www/html
       - vendor_data:/var/www/html/vendor
-    environment:
-      - DB_CONNECTION=mysql
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_DATABASE=nuwek
-      - DB_USERNAME=root
-      - DB_PASSWORD=root_password
     depends_on:
       mysql:
+        condition: service_healthy
+      mysql-test:
         condition: service_healthy
 
   mysql:

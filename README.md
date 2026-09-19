@@ -1,59 +1,79 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Nuwek KPI Challenge
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Solución al reto técnico de Grupo Nuwek para la importación y análisis de indicadores comerciales.
 
-## About Laravel
+## Requisitos Previos
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Docker y Docker Compose**: La solución está completamente dockerizada. No necesitas tener PHP o MySQL instalados localmente.
+- **Git**: Para clonar el repositorio.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Instalación y Configuración
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/09193919307/nuwek-kpi-challenge.git
+   cd nuwek-kpi-challenge
+   ```
+2. Levanta los contenedores y construye la imagen (esto iniciará PHP 8.2 con Apache y dos instancias de MySQL: una para la app y otra para pruebas):
+   ```bash
+   docker-compose up -d --build
+   ```
+3. Instala las dependencias del proyecto dentro del contenedor:
+   ```bash
+   docker exec nuwek_app composer install
+   ```
+4. Genera la llave de la aplicación y ejecuta las migraciones:
+   ```bash
+   docker exec nuwek_app php artisan key:generate
+   docker exec nuwek_app php artisan migrate
+   ```
 
-## Learning Laravel
+## Importación de Datos
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Se ha creado un comando Artisan para limpiar, normalizar e importar los datos de manera idempotente (evita duplicados).
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+docker exec nuwek_app php artisan ventas data/ventas.csv
+```
 
-## Laravel Sponsors
+**Comprobaciones de la regla de negocio implementada:**
+- Convierte diferentes formatos de fechas y omite las inválidas o vacías.
+- Normaliza los montos, removiendo caracteres no numéricos o comas y convirtiéndolos en formato válido, descartando los que no tengan sentido numérico.
+- Unifica las regiones y estatus sin importar mayúsculas, minúsculas o acentos.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## API de Resumen de Ventas
 
-### Premium Partners
+Endpoint para consultar el total acumulado y conteo de transacciones, considerando **exclusivamente** las ventas con estatus `cerrada`.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+**Endpoint:** `GET /api/ventas/resumen`
 
-## Contributing
+### Ejemplos de uso (cURL)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**1. Histórico completo:**
+```bash
+curl -s http://localhost:8000/api/ventas/resumen
+```
 
-## Code of Conduct
+**2. Filtrado por fechas:**
+```bash
+curl -s "http://localhost:8000/api/ventas/resumen?fecha_inicio=2026-01-01&fecha_fin=2026-03-31"
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Pruebas (Testing)
 
-## Security Vulnerabilities
+Se configuró un entorno aislado mediante una base de datos MySQL exclusiva para pruebas (`nuwek_test`), levantada automáticamente por Docker.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1. Prepara la base de datos de pruebas (solo la primera vez):
+   ```bash
+   docker exec nuwek_app php artisan migrate --env=testing
+   ```
+2. Ejecuta la suite de pruebas unitarias y de integración:
+   ```bash
+   docker exec nuwek_app php artisan test --env=testing
+   ```
 
-## License
+## Decisiones Técnicas Relevantes
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- **Desacoplamiento (Clean Code):** La lógica pesada de lectura del CSV y la normalización de cada registro se abstrajeron a la clase de servicio `VentasCleaner`, permitiendo poder testear la limpieza aislada sin depender del comando ni de la base de datos.
+- **Entorno de Pruebas Aislado:** Se agregó `mysql-test` en Docker para garantizar que `php artisan test` nunca corrompa ni vacíe la base de datos local principal, resolviendo de forma limpia la interferencia de variables de entorno de Docker.
+- **Validación del API:** Se reemplazó el tradicional error HTTP 422 de Laravel por un código 400 personalizado al validar las fechas de entrada, como fue requerido explícitamente en el reto.

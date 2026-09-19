@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
 use App\Models\Venta;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class VentasController extends Controller
 {
@@ -19,7 +20,7 @@ class VentasController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'error' => 'Parámetros inválidos.',
-                'mensajes' => $validator->errors()
+                'mensajes' => $validator->errors(),
             ], 400);
         }
 
@@ -28,7 +29,7 @@ class VentasController extends Controller
 
         if ($fechaInicio && $fechaFin && $fechaInicio > $fechaFin) {
             return response()->json([
-                'error' => 'La fecha de inicio no puede ser posterior a la fecha de fin.'
+                'error' => 'La fecha de inicio no puede ser posterior a la fecha de fin.',
             ], 400);
         }
 
@@ -37,7 +38,7 @@ class VentasController extends Controller
         if ($fechaInicio) {
             $query->where('fecha', '>=', $fechaInicio);
         }
-        
+
         if ($fechaFin) {
             $query->where('fecha', '<=', $fechaFin);
         }
@@ -61,12 +62,13 @@ class VentasController extends Controller
             return response()->json([
                 'total_ventas' => $totalVentas,
                 'numero_ventas' => $numeroVentas,
-                'por_region' => $porRegion
+                'por_region' => $porRegion,
             ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error en /api/ventas/resumen: ' . $e->getMessage());
+            Log::error('Error en /api/ventas/resumen: '.$e->getMessage());
+
             return response()->json([
-                'error' => 'Error interno del servidor.'
+                'error' => 'Error interno del servidor.',
             ], 500);
         }
     }

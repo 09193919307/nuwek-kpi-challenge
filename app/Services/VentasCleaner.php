@@ -2,14 +2,12 @@
 
 namespace App\Services;
 
-use DateTime;
-
 class VentasCleaner
 {
     /**
      * Limpia un registro. Devuelve el registro normalizado, o false/null si es inválido y se debe descartar.
      */
-    public function clean(array $row): array|null
+    public function clean(array $row): ?array
     {
         // 1. Validar región vacía
         $region = trim($row['region'] ?? '');
@@ -51,7 +49,7 @@ class VentasCleaner
             return null; // Fecha vacía -> descartar
         }
         $fechaNormalizada = $this->parseDate($fecha);
-        if (!$fechaNormalizada) {
+        if (! $fechaNormalizada) {
             return null; // No se puede interpretar o día no existe -> descartar
         }
 
@@ -80,40 +78,43 @@ class VentasCleaner
     {
         // 2026-03-04 y 2026-03-04 00:00:00 -> año-mes-día
         // 04-03-2026 y 04/03/2026 -> día-mes-año
-        
+
         // Quitar la hora si viene con formato 00:00:00 o cualquier hora
         $date = preg_replace('/\s+\d{2}:\d{2}:\d{2}$/', '', $date);
 
         // Patrón año-mes-día (4 dígitos, guion, 2 dígitos, guion, 2 dígitos)
         if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $matches)) {
-            $year = (int)$matches[1];
-            $month = (int)$matches[2];
-            $day = (int)$matches[3];
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
             if (checkdate($month, $day, $year)) {
                 return sprintf('%04d-%02d-%02d', $year, $month, $day);
             }
+
             return null;
         }
 
         // Patrón día-mes-año o día/mes/año
         if (preg_match('/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/', $date, $matches)) {
-            $day = (int)$matches[1];
-            $month = (int)$matches[2];
-            $year = (int)$matches[3];
+            $day = (int) $matches[1];
+            $month = (int) $matches[2];
+            $year = (int) $matches[3];
             if (checkdate($month, $day, $year)) {
                 return sprintf('%04d-%02d-%02d', $year, $month, $day);
             }
+
             return null;
         }
 
         // Patrón año/mes/día
         if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $date, $matches)) {
-            $year = (int)$matches[1];
-            $month = (int)$matches[2];
-            $day = (int)$matches[3];
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
             if (checkdate($month, $day, $year)) {
                 return sprintf('%04d-%02d-%02d', $year, $month, $day);
             }
+
             return null;
         }
 
@@ -124,7 +125,7 @@ class VentasCleaner
     {
         // Quitar $ y espacios
         $monto = str_replace(['$', ' '], '', $monto);
-        
+
         if ($monto === '' || strtolower($monto) === 'n/a') {
             return null;
         }
@@ -136,15 +137,15 @@ class VentasCleaner
         if ($hasPoint && $hasComma) {
             // "punto y coma" -> coma es separador de miles
             $monto = str_replace(',', '', $monto);
-        } elseif ($hasComma && !$hasPoint) {
+        } elseif ($hasComma && ! $hasPoint) {
             // "solo coma" -> coma es el separador decimal
             $monto = str_replace(',', '.', $monto);
         }
 
-        if (!is_numeric($monto)) {
+        if (! is_numeric($monto)) {
             return null;
         }
 
-        return (float)$monto;
+        return (float) $monto;
     }
 }
